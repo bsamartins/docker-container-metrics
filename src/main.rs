@@ -18,6 +18,8 @@ async fn main() {
         .install()
         .expect("failed to install recorder/exporter");
 
+    log::info!("started exporter on 0.0.0.0:9000");
+
     let docker = Docker::connect_with_unix_defaults().unwrap();
 
     let containers = list_containers(&docker)
@@ -31,31 +33,24 @@ async fn main() {
 
     while let Some(stats_result) = stats_stream.next().await {
         match stats_result {
-            Ok(_stats) => {
-                let stats = &_stats;
+            Ok(ref stats) => {
                 let container_name = stats.name.replace("/", "");
                 let container_name_label = ("name", container_name.clone());
 
                 let cpu_labels = [container_name_label.clone()];
 
-                match calculate_percent_unix(stats) {
-                    Some(percentage) => {
-                        gauge!("container_cpu_usage", &cpu_labels).set(percentage);
-                    }
-                    None => {}
+                if let Some(percentage) = calculate_percent_unix(stats) {
+                    gauge!("container_cpu_usage", &cpu_labels).set(percentage);
                 }
 
-                match stats.clone().networks {
-                    Some(networks) => {
-                        networks.iter().for_each(|(network, net_stats)| {
-                            let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
-                            counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
-                            counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
-                            counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
-                            counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
-                        })
-                    }
-                    None => {}
+                if let Some(ref networks) = stats.networks {
+                    networks.iter().for_each(|(network, net_stats)| {
+                        let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
+                        counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
+                        counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
+                        counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
+                        counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
+                    })
                 }
             }
             Err(err) => {

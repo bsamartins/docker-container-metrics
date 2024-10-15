@@ -364,6 +364,7 @@ dependencies = [
  "env_logger",
  "futures",
  "futures-util",
+ "log",
  "metrics",
  "metrics-exporter-prometheus",
  "tokio",
