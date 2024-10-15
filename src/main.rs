@@ -4,7 +4,7 @@ use bollard::models::ContainerSummary;
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use futures_util::Stream;
-use metrics::gauge;
+use metrics::counter;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::collections::HashMap;
 
@@ -35,10 +35,10 @@ async fn main() {
                     Some(networks) => {
                         networks.iter().for_each(|(network, net_stats)| {
                             let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
-                            gauge!("container_network_rx_bytes", network_labels).set(net_stats.rx_bytes as f64);
-                            gauge!("container_network_tx_bytes", network_labels).set(net_stats.tx_bytes as f64);
-                            gauge!("container_network_rx_packets", network_labels).set(net_stats.rx_packets as f64);
-                            gauge!("container_network_tx_packets", network_labels).set(net_stats.tx_packets as f64);
+                            counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
+                            counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
+                            counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
+                            counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
                         })
                     }
                     None => {}
