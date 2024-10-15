@@ -4,12 +4,15 @@ use bollard::models::ContainerSummary;
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use futures_util::Stream;
-use metrics::counter;
+use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::collections::HashMap;
+use std::ops::Sub;
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let builder = PrometheusBuilder::new();
     builder
         .install()
@@ -28,10 +31,21 @@ async fn main() {
 
     while let Some(stats_result) = stats_stream.next().await {
         match stats_result {
-            Ok(stats) => {
+            Ok(_stats) => {
+                let stats = &_stats;
                 let container_name = stats.name.replace("/", "");
                 let container_name_label = ("name", container_name.clone());
-                match stats.networks {
+
+                let cpu_labels = [container_name_label.clone()];
+
+                match calculate_percent_unix(stats) {
+                    Some(percentage) => {
+                        gauge!("container_cpu_usage", &cpu_labels).set(percentage);
+                    }
+                    None => {}
+                }
+
+                match stats.clone().networks {
                     Some(networks) => {
                         networks.iter().for_each(|(network, net_stats)| {
                             let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
@@ -76,4 +90,50 @@ async fn list_containers(docker: &Docker) -> Vec<ContainerSummary> {
 
     docker.list_containers(list_container_options).await
         .expect("list containers")
+}
+
+fn _calculate_percent_windows(stats: &Stats) -> Option<f64> {
+    let read = chrono::DateTime::parse_from_rfc3339(stats.read.as_str());
+    let pre_read = chrono::DateTime::parse_from_rfc3339(stats.preread.as_str());
+
+    match (read, pre_read) {
+        (Ok(read), Ok(pre_read)) => {
+            read.time().sub(pre_read.time())
+                .num_nanoseconds()
+                .map(|n| n / 100)
+                .map(|n| n * stats.num_procs as i64)
+        }
+        _ => None
+    }.filter(|poss_intervals| *poss_intervals > 0)
+        .map(|poss_intervals| {
+            let intervals_used = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+            intervals_used as f64 / poss_intervals as f64 * 100.0
+        })
+}
+
+fn calculate_percent_unix(stats: &Stats) -> Option<f64> {
+    let previous_cpu = stats.precpu_stats.cpu_usage.total_usage;
+    let previous_system = stats.precpu_stats.system_cpu_usage;
+    let per_cpu_usage_len = stats.clone().cpu_stats.cpu_usage.percpu_usage
+        .map(|vec| vec.len() as u64)
+        .unwrap_or(0);
+
+    match (previous_system, stats.cpu_stats.system_cpu_usage) {
+        (Some(previous_system), Some(system_cpu_usage)) => {
+            let cpu_delta = stats.cpu_stats.cpu_usage.total_usage - previous_cpu;
+            let system_delta = system_cpu_usage - previous_system;
+            let mut online_cpus = stats.cpu_stats.online_cpus.unwrap_or(0);
+
+            if online_cpus == 0 {
+                online_cpus = per_cpu_usage_len
+            }
+            if system_delta > 0 && cpu_delta > 0 {
+                Some(((cpu_delta as f64 / system_delta as f64) * online_cpus as f64) * 100.0f64)
+            } else {
+                None
+            }
+        }
+        _ => None
+    }
+
 }
