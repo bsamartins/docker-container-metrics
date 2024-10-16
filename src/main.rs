@@ -20,7 +20,7 @@ async fn main() {
 
     log::info!("started exporter on 0.0.0.0:9000");
 
-    let docker = Docker::connect_with_unix_defaults().unwrap();
+    let docker = Docker::connect_with_local_defaults().unwrap();
 
     let containers = list_containers(&docker)
         .await;
