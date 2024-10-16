@@ -8,6 +8,11 @@ use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::collections::HashMap;
 use std::ops::Sub;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tokio::time;
+use tokio::time::Interval;
+use tokio_stream::wrappers::IntervalStream;
 
 #[tokio::main]
 async fn main() {
@@ -22,19 +27,18 @@ async fn main() {
 
     let docker = Docker::connect_with_local_defaults().unwrap();
 
-    let containers = list_containers(&docker)
-        .await;
+    let container_names = list_container_names(&docker)
+        .await
+        .expect("failed to list containers");
 
-    let container_names = containers.iter()
-        .map(|c| c.clone().names.unwrap().first().unwrap().to_string().replace("/", ""))
-        .collect();
+    log::trace!("found {:?} containers", container_names);
 
     let mut stats_stream = container_stats(docker, container_names);
 
     while let Some(stats_result) = stats_stream.next().await {
         match stats_result {
             Ok(ref stats) => {
-                let container_name = stats.name.replace("/", "");
+                let container_name = normalize_container_name(stats.name.as_str());
                 let container_name_label = ("name", container_name.clone());
 
                 let cpu_labels = [container_name_label.clone()];
@@ -73,7 +77,7 @@ fn container_stats(docker: Docker, container_names: Vec<String>) -> impl Stream<
     futures::stream::select_all(streams)
 }
 
-async fn list_containers(docker: &Docker) -> Vec<ContainerSummary> {
+async fn list_container_names(docker: &Docker) -> Result<Vec<String>, Error> {
     let mut filters = HashMap::new();
     filters.insert("status", vec!["running"]);
 
@@ -82,9 +86,13 @@ async fn list_containers(docker: &Docker) -> Vec<ContainerSummary> {
         filters,
         ..Default::default()
     });
-
-    docker.list_containers(list_container_options).await
-        .expect("list containers")
+    docker.list_containers(list_container_options)
+        .await
+        .map(|containers|
+            containers.iter()
+                .map(|c| normalize_container_name(c.clone().names.unwrap().first().unwrap()))
+                .collect::<Vec<_>>()
+        )
 }
 
 fn _calculate_percent_windows(stats: &Stats) -> Option<f64> {
@@ -130,5 +138,8 @@ fn calculate_percent_unix(stats: &Stats) -> Option<f64> {
         }
         _ => None
     }
+}
 
+fn normalize_container_name(name: &str) -> String {
+    name.replace("/", "")
 }
