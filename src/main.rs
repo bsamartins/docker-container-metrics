@@ -7,9 +7,8 @@ use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::collections::HashMap;
 use std::ops::Sub;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::join;
 use tokio::time::sleep;
 
 #[tokio::main]
@@ -19,78 +18,70 @@ async fn main() {
     let builder = PrometheusBuilder::new();
     builder
         .install()
-        .expect("failed to install recorder/exporter");
+        .expect("Failed to install recorder/exporter");
 
-    log::info!("started exporter on 0.0.0.0:9000");
+    log::info!("Started exporter on 0.0.0.0:9000");
 
     let docker = Arc::new(Docker::connect_with_local_defaults().unwrap());
-    let container_names = Arc::new(Mutex::new(Vec::new()));
 
-    let list_images_job = tokio::spawn(fetch_container_names(docker.clone(), container_names.clone()));
-    let stats_job = tokio::spawn(fetch_stats(docker, container_names));
+    let stats_job = tokio::spawn(fetch_stats(docker));
 
-    join!(list_images_job, stats_job);
+    let _ = stats_job.await;
 }
 
-async fn fetch_stats(docker: Arc<Docker>, container_names: Arc<Mutex<Vec<String>>>) {
+async fn fetch_stats(docker: Arc<Docker>) {
+    let mut container_names = Vec::new();
     loop {
-        let mut stats_stream = containers_stats(docker.clone(), container_names.clone());
+        match list_container_names(docker.clone()).await {
+            Ok(containers) => {
+                container_names = containers
+            }
+            Err(err) => {
+                log::trace!("Failed to fetch container names: {}", err);
+            }
+        }
+
+        let mut stats_stream = containers_stats(docker.clone(), &container_names);
 
         while let Some(stats_result) = stats_stream.next().await {
             match stats_result {
-                Ok(ref stats) => {
-                    let container_name = normalize_container_name(stats.name.as_str());
-                    let container_name_label = ("name", container_name.clone());
-
-                    let cpu_labels = [container_name_label.clone()];
-
-                    if let Some(percentage) = calculate_percent_unix(stats) {
-                        gauge!("container_cpu_usage", &cpu_labels).set(percentage);
-                    }
-
-                    if let Some(ref networks) = stats.networks {
-                        networks.iter().for_each(|(network, net_stats)| {
-                            let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
-                            counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
-                            counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
-                            counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
-                            counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
-                        })
-                    }
-                }
-                Err(err) => {
-                    log::error!("{:?}", err);
-                }
+                Ok(ref stats) => { record_stats(stats); }
+                Err(err) => { log::error!("{:?}", err); }
             }
         }
         sleep(Duration::from_secs(1)).await;
     }
 }
 
-async fn fetch_container_names(docker: Arc<Docker>, mut container_names: Arc<Mutex<Vec<String>>>) {
-    loop {
-        let mut result = list_container_names(docker.clone())
-            .await
-            .expect("failed to list containers");
+fn record_stats(stats: &Stats) {
+    let container_name = normalize_container_name(stats.name.as_str());
+    let container_name_label = ("name", container_name.clone());
 
-        let mut containers_lock = container_names.lock().unwrap();
-        containers_lock.clear();
-        containers_lock.append(&mut result);
+    let cpu_labels = [container_name_label.clone()];
 
-        log::trace!("found {:?} containers", container_names);
-        sleep(Duration::from_secs(10)).await;
+    if let Some(percentage) = calculate_percent_unix(stats) {
+        gauge!("container_cpu_usage", &cpu_labels).set(percentage);
+    }
+
+    if let Some(ref networks) = stats.networks {
+        networks.iter().for_each(|(network, net_stats)| {
+            let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
+            counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
+            counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
+            counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
+            counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
+        })
     }
 }
 
-fn containers_stats(docker: Arc<Docker>, container_names: Arc<Mutex<Vec<String>>>) -> impl Stream<Item=Result<Stats, Error>> + Sized {
+fn containers_stats(docker: Arc<Docker>, container_names: &Vec<String>) -> impl Stream<Item=Result<Stats, Error>> + Sized {
     let stats_options = StatsOptions {
         stream: false,
         ..Default::default()
     };
 
-    let container_names_lock = container_names.lock().unwrap();
-    log::info!("fetching stats for {:?}", container_names_lock);
-    let streams = container_names_lock.iter().map(|container_name| {
+    log::trace!("fetching stats for {:?}", container_names);
+    let streams = container_names.iter().map(|container_name| {
         docker.stats(container_name, Some(stats_options))
     }).collect::<Vec<_>>();
 
