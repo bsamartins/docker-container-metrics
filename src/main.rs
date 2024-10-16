@@ -1,18 +1,16 @@
 use bollard::container::{ListContainersOptions, Stats, StatsOptions};
 use bollard::errors::Error;
-use bollard::models::ContainerSummary;
 use bollard::Docker;
-use futures_util::stream::StreamExt;
-use futures_util::Stream;
+use futures::Stream;
+use futures_util::StreamExt;
 use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use std::collections::HashMap;
 use std::ops::Sub;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::time;
-use tokio::time::Interval;
-use tokio_stream::wrappers::IntervalStream;
+use tokio::join;
+use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() {
@@ -25,59 +23,81 @@ async fn main() {
 
     log::info!("started exporter on 0.0.0.0:9000");
 
-    let docker = Docker::connect_with_local_defaults().unwrap();
+    let docker = Arc::new(Docker::connect_with_local_defaults().unwrap());
+    let container_names = Arc::new(Mutex::new(Vec::new()));
 
-    let container_names = list_container_names(&docker)
-        .await
-        .expect("failed to list containers");
+    let list_images_job = tokio::spawn(fetch_container_names(docker.clone(), container_names.clone()));
+    let stats_job = tokio::spawn(fetch_stats(docker, container_names));
 
-    log::trace!("found {:?} containers", container_names);
+    join!(list_images_job, stats_job);
+}
 
-    let mut stats_stream = container_stats(docker, container_names);
+async fn fetch_stats(docker: Arc<Docker>, container_names: Arc<Mutex<Vec<String>>>) {
+    loop {
+        let mut stats_stream = containers_stats(docker.clone(), container_names.clone());
 
-    while let Some(stats_result) = stats_stream.next().await {
-        match stats_result {
-            Ok(ref stats) => {
-                let container_name = normalize_container_name(stats.name.as_str());
-                let container_name_label = ("name", container_name.clone());
+        while let Some(stats_result) = stats_stream.next().await {
+            match stats_result {
+                Ok(ref stats) => {
+                    let container_name = normalize_container_name(stats.name.as_str());
+                    let container_name_label = ("name", container_name.clone());
 
-                let cpu_labels = [container_name_label.clone()];
+                    let cpu_labels = [container_name_label.clone()];
 
-                if let Some(percentage) = calculate_percent_unix(stats) {
-                    gauge!("container_cpu_usage", &cpu_labels).set(percentage);
+                    if let Some(percentage) = calculate_percent_unix(stats) {
+                        gauge!("container_cpu_usage", &cpu_labels).set(percentage);
+                    }
+
+                    if let Some(ref networks) = stats.networks {
+                        networks.iter().for_each(|(network, net_stats)| {
+                            let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
+                            counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
+                            counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
+                            counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
+                            counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
+                        })
+                    }
                 }
-
-                if let Some(ref networks) = stats.networks {
-                    networks.iter().for_each(|(network, net_stats)| {
-                        let network_labels = &[container_name_label.clone(), ("network", network.to_string())];
-                        counter!("container_network_rx_bytes", network_labels).absolute(net_stats.rx_bytes);
-                        counter!("container_network_tx_bytes", network_labels).absolute(net_stats.tx_bytes);
-                        counter!("container_network_rx_packets", network_labels).absolute(net_stats.rx_packets);
-                        counter!("container_network_tx_packets", network_labels).absolute(net_stats.tx_packets);
-                    })
+                Err(err) => {
+                    log::error!("{:?}", err);
                 }
-            }
-            Err(err) => {
-                println!("{:?}", err);
             }
         }
+        sleep(Duration::from_secs(1)).await;
     }
 }
 
-fn container_stats(docker: Docker, container_names: Vec<String>) -> impl Stream<Item=Result<Stats, Error>> + Sized {
+async fn fetch_container_names(docker: Arc<Docker>, mut container_names: Arc<Mutex<Vec<String>>>) {
+    loop {
+        let mut result = list_container_names(docker.clone())
+            .await
+            .expect("failed to list containers");
+
+        let mut containers_lock = container_names.lock().unwrap();
+        containers_lock.clear();
+        containers_lock.append(&mut result);
+
+        log::trace!("found {:?} containers", container_names);
+        sleep(Duration::from_secs(10)).await;
+    }
+}
+
+fn containers_stats(docker: Arc<Docker>, container_names: Arc<Mutex<Vec<String>>>) -> impl Stream<Item=Result<Stats, Error>> + Sized {
     let stats_options = StatsOptions {
-        stream: true,
+        stream: false,
         ..Default::default()
     };
 
-    let streams = container_names.iter().map(|container_name| {
+    let container_names_lock = container_names.lock().unwrap();
+    log::info!("fetching stats for {:?}", container_names_lock);
+    let streams = container_names_lock.iter().map(|container_name| {
         docker.stats(container_name, Some(stats_options))
     }).collect::<Vec<_>>();
 
     futures::stream::select_all(streams)
 }
 
-async fn list_container_names(docker: &Docker) -> Result<Vec<String>, Error> {
+async fn list_container_names(docker: Arc<Docker>) -> Result<Vec<String>, Error> {
     let mut filters = HashMap::new();
     filters.insert("status", vec!["running"]);
 
