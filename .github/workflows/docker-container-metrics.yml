@@ -15,7 +15,7 @@ jobs:
     - name: Build
       run: cargo build --verbose --release
     - name: upload linux artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v4
       with:
         name: uploads
         path: target/release/docker-container-metrics
