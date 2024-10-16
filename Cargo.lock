@@ -356,7 +356,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "docker-metrics-rs"
+name = "docker-container-metrics"
 version = "0.1.0"
 dependencies = [
  "bollard",
