@@ -19,3 +19,4 @@ jobs:
       with:
         name: uploads
         path: target/release/docker-container-metrics
+        if-no-files-found: error
