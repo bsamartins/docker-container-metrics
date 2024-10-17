@@ -70,16 +70,24 @@ jobs:
           echo "tags: ${{ steps.meta.outputs.tags }}"
           echo "labels: ${{ steps.meta.outputs.labels }}"
 
+      - name: Build and Push amd64
+        uses: docker/bake-action@v5
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        with:
+          targets: linux-amd64
+          push: true
+
       - name: Build and push
         uses: docker/bake-action@v5
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         with:
-          targets: linux
+          targets: linux-arm64
           push: true
 
   publish-docker-hub:
-    name: Publish Docker image
+    name: Publish Docker image - Docker Hub
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -112,10 +120,19 @@ jobs:
           echo "tags: ${{ steps.meta.outputs.tags }}"
           echo "labels: ${{ steps.meta.outputs.labels }}"
 
+      - name: Build and Push amd64
+        uses: docker/bake-action@v5
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        with:
+          targets: linux-amd64
+          push: true
+
       - name: Build and push
         uses: docker/bake-action@v5
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
         with:
-          targets: linux
+          targets: linux-arm64
           push: true
+
