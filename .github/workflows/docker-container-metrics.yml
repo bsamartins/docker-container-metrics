@@ -7,7 +7,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   REGISTRY: ghcr.io
-  IMAGE_NAME: docker-container-metrics
+  IMAGE_NAME: bsamartins/docker-container-metrics
 
 jobs:
   build:
