@@ -73,7 +73,7 @@ jobs:
       - name: Build and Push amd64
         uses: docker/bake-action@v5
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
+          TAGS: ${{ env.IMAGE_NAME }}
         with:
           targets: linux-amd64
           push: true
@@ -81,7 +81,7 @@ jobs:
       - name: Build and push
         uses: docker/bake-action@v5
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
+          TAGS: ${{ env.IMAGE_NAME }}
         with:
           targets: linux-arm64
           push: true
