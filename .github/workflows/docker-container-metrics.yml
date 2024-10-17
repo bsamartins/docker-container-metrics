@@ -130,3 +130,5 @@ jobs:
         with:
           targets: linux
           push: true
+
+      - run: find .
