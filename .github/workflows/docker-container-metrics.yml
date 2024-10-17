@@ -32,8 +32,8 @@ jobs:
     - name: Prepare artifacts
       run: |
         mkdir artifacts
-        cp ./build/x86_64-unknown-linux-gnu/release/docker-container-metrics artifacts/docker-container-metrics_amd64 
-        cp ./build/x86_64-unknown-linux-gnu/release/docker-container-metrics artifacts/docker-container-metrics_arm64 
+        cp ./target/x86_64-unknown-linux-gnu/release/docker-container-metrics artifacts/docker-container-metrics_amd64 
+        cp ./target/aarch64-unknown-linux-gnu/release/docker-container-metrics artifacts/docker-container-metrics_arm64 
 
     - name: upload linux artifact
       uses: actions/upload-artifact@v4
