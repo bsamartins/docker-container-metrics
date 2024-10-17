@@ -12,6 +12,10 @@ group "linux" {
   targets = ["linux-amd64", "linux-arm64"]
 }
 
+target "release" {
+    output = ["push-by-digest=true", "push=true"]
+}
+
 target "linux-base" {
     dockerfile = "Docker.linux.dockerfile"
     tags = ["${TAGS}"]
@@ -20,7 +24,7 @@ target "linux-base" {
 }
 
 target "linux-amd64" {
-    inherits = ["linux-base"]
+    inherits = ["release", "linux-base"]
     platforms = ["linux/amd64"]
     args = {
         BINARY = "./build/x86_64-unknown-linux-gnu/release/docker-container-metrics"
@@ -28,7 +32,7 @@ target "linux-amd64" {
 }
 
 target "linux-arm64" {
-    inherits = ["linux-base"]
+    inherits = ["release", "linux-base"]
     platforms = ["linux/arm64"]
     args = {
         BINARY = "./build/aarch64-unknown-linux-gnu/release/docker-container-metrics"
