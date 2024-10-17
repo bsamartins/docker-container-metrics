@@ -1,8 +1,11 @@
 name: Docker Container Metrics
-
 on:
   push:
     branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -73,7 +76,7 @@ jobs:
       - name: Build and Push amd64
         uses: docker/bake-action@v5
         env:
-          TAGS: ${{ env.IMAGE_NAME }}
+          TAGS: "${{ env.IMAGE_NAME }}:${{ github.sha }}"
         with:
           targets: linux-amd64
           push: true
@@ -81,7 +84,7 @@ jobs:
       - name: Build and push
         uses: docker/bake-action@v5
         env:
-          TAGS: ${{ env.IMAGE_NAME }}
+          TAGS: "${{ env.IMAGE_NAME }}:${{ github.sha }}"
         with:
           targets: linux-arm64
           push: true
@@ -123,7 +126,7 @@ jobs:
       - name: Build and Push amd64
         uses: docker/bake-action@v5
         env:
-          TAGS: ${{ env.IMAGE_NAME }}
+          TAGS: "${{ env.IMAGE_NAME }}:${{ github.sha }}"
         with:
           targets: linux-amd64
           push: true
@@ -131,8 +134,9 @@ jobs:
       - name: Build and push
         uses: docker/bake-action@v5
         env:
-          TAGS: ${{ env.IMAGE_NAME }}
+          TAGS: "${{ env.IMAGE_NAME }}:${{ github.sha }}"
         with:
           targets: linux-arm64
           push: true
 
+      -
