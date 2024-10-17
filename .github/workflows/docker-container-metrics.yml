@@ -80,5 +80,5 @@ jobs:
         env:
           TAGS: "${{ steps.meta.outputs.tags }}"
         with:
-          targets: test
+          targets: linux
           push: true
