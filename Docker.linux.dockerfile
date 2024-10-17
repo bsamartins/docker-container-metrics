@@ -1,7 +1,6 @@
 FROM rust:latest AS build
 WORKDIR /app
 ADD . .
-RUN ls -la
 RUN cargo build --verbose --release
 
 FROM scratch
