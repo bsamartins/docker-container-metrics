@@ -49,12 +49,6 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Download linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-linux
-          path: build/docker-container-metrics
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:

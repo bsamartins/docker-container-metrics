@@ -1,8 +1,8 @@
 FROM rust:latest AS build
 WORKDIR /app
 ADD . .
+RUN ls -la
 RUN cargo build --verbose --release
-RUN find .
 
 FROM scratch
 EXPOSE 9000
