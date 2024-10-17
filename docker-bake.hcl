@@ -1,5 +1,5 @@
 variable "TAGS" {
-    default = "docker-container-metrics:latest"
+    default = "bsamartins/docker-container-metrics:latest"
 }
 
 group "linux" {
@@ -30,4 +30,11 @@ target "linux-arm64" {
     args = {
         BINARY = "./build/aarch64-unknown-linux-gnu/release/docker-container-metrics"
     }
+}
+
+target "test" {
+    dockerfile = "Docker.test.dockerfile"
+    context = "."
+    platforms = ["linux/arm64", "linux/amd64"]
+    tags = ["${TAGS}"]
 }
