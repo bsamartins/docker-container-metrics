@@ -53,6 +53,9 @@ jobs:
         with:
           name: binary-linux
 
+      - name: Build
+        run: ls -la
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
