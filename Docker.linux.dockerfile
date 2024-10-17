@@ -1,9 +1,7 @@
-FROM rust:latest AS build
-WORKDIR /app
-ADD . .
-RUN cargo build --verbose --release
-
 FROM scratch
+
+ARG BINARY
+
 EXPOSE 9000
-COPY --from=build --chmod=0777 /app/target/release/docker-container-metrics docker-container-metrics
+COPY --chmod=0777 $BINARY docker-container-metrics
 ENTRYPOINT ["./docker-container-metrics"]

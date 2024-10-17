@@ -62,12 +62,20 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
+      - name: download linux artifacts
+        uses: actions/upload-artifact@v4
         with:
-          context: .
-          file: Docker.linux.dockerfile
+          name: binaries-linux
+          path: build
+
+      - name: list
+        run: find .
+
+      - name: Build and push
+        uses: docker/bake-action@v5
+        with:
+          targets: linux
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+#          platforms: linux/amd64,linux/arm64
+#          tags: ${{ steps.meta.outputs.tags }}
+#          labels: ${{ steps.meta.outputs.labels }}
