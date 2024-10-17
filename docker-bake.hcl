@@ -16,6 +16,7 @@ target "linux-base" {
     dockerfile = "Docker.linux.dockerfile"
     tags = ["${TAGS}"]
     context = "."
+    output = ["push-by-digest=true"]
 }
 
 target "linux-amd64" {
