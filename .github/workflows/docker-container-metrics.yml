@@ -26,9 +26,6 @@ jobs:
     - name: Build linux-arm64
       run: cross build --release --target aarch64-unknown-linux-gnu
 
-    - name: list files
-      run: find .
-
     - name: upload linux artifact
       uses: actions/upload-artifact@v4
       with:
@@ -66,15 +63,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: binaries-linux
-          path: target
+          path: build
+
+      - run: find .
 
       - name: echo meta
         run: |
           echo "tags: ${{ steps.meta.outputs.tags }}"
           echo "labels: ${{ steps.meta.outputs.labels }}"
-
-      - name: list
-        run: find .
 
       - name: Build and push
         uses: docker/bake-action@v5

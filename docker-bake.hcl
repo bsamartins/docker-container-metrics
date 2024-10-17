@@ -15,13 +15,14 @@ group "linux" {
 target "linux-base" {
     dockerfile = "Docker.linux.dockerfile"
     tags = ["${TAGS}"]
+    context = "."
 }
 
 target "linux-amd64" {
     inherits = ["linux-base"]
     platforms = ["linux/amd64"]
     args = {
-        BINARY = "./target/x86_64-unknown-linux-gnu/release/docker-container-metrics"
+        BINARY = "./build/x86_64-unknown-linux-gnu/release/docker-container-metrics"
     }
 }
 
@@ -29,6 +30,6 @@ target "linux-arm64" {
     inherits = ["linux-base"]
     platforms = ["linux/arm64"]
     args = {
-        BINARY = "./target/aarch64-unknown-linux-gnu/release/docker-container-metrics"
+        BINARY = "./build/aarch64-unknown-linux-gnu/release/docker-container-metrics"
     }
 }
