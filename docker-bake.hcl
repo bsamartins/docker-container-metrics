@@ -13,7 +13,7 @@ group "linux" {
 }
 
 target "release" {
-    output = ["push-by-digest=true", "push=true"]
+    output = ["push-by-digest=true", "push=true", "type=image"]
 }
 
 target "linux-base" {
