@@ -6,5 +6,5 @@ RUN find .
 
 FROM scratch
 EXPOSE 9000
-ADD --from=build --chmod=0777 /app/target/release/docker-container-metrics docker-container-metrics
+COPY --from=build --chmod=0777 /app/target/release/docker-container-metrics docker-container-metrics
 ENTRYPOINT ["./docker-container-metrics"]
