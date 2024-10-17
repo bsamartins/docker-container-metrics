@@ -23,7 +23,7 @@ target "test" {
 }
 
 target "release" {
-    output = ["push-by-digest=true"]
+    output = ["type=image,push=true,push-by-digest=true"]
 }
 
 target "linux-base" {
