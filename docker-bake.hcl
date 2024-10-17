@@ -21,7 +21,7 @@ target "linux-amd64" {
     inherits = ["linux-base"]
     platforms = ["linux/amd64"]
     args = {
-        BINARY = "target/x86_64-unknown-linux-gnu/release/docker-container-metrics"
+        BINARY = "target/release/x86_64-unknown-linux-gnu/docker-container-metrics"
     }
 }
 
@@ -29,6 +29,6 @@ target "linux-arm64" {
     inherits = ["linux-base"]
     platforms = ["linux/arm64"]
     args = {
-        BINARY = "target/aarch64-unknown-linux-gnu/release/docker-container-metrics"
+        BINARY = "target/release/aarch64-unknown-linux-gnu/docker-container-metrics"
     }
 }
