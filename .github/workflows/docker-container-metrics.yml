@@ -63,10 +63,10 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: download linux artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/download-artifact@v4
         with:
           name: binaries-linux
-          path: .
+          path: build
 
       - name: echo meta
         run: |
