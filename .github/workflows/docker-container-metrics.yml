@@ -133,4 +133,8 @@ jobs:
           push: true
 
       - run: find .
-      - run: cat ${{ steps.build.outputs.metadata }}
+      - env:
+          METADATA: ${{ steps.build.outputs.metadata }}
+        run: |
+          echo "$METADATA"
+          cat $METADATA
