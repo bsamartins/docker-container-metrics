@@ -68,6 +68,11 @@ jobs:
           name: binaries-linux
           path: build
 
+      - name: echo meta
+        run: |
+          echo "tags: ${{ steps.meta.outputs.tags }}"
+          echo "labels: ${{ steps.meta.outputs.labels }}"
+
       - name: list
         run: find .
 
