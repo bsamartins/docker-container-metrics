@@ -124,6 +124,7 @@ jobs:
           echo "labels: ${{ steps.meta.outputs.labels }}"
 
       - name: Build and Push
+        id: build
         uses: docker/bake-action@v5
         env:
           TAGS: "${{ env.IMAGE_NAME }}:${{ github.sha }}"
@@ -132,3 +133,4 @@ jobs:
           push: true
 
       - run: find .
+      - run: cat ${{ steps.build.outputs.metadata }}
