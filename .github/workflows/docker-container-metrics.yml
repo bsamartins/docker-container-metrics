@@ -21,10 +21,10 @@ jobs:
         cargo install cross      
 
     - name: Build linux-amd64
-      run: cross build --target x86_64-unknown-linux-gnu
+      run: cross build --release --target x86_64-unknown-linux-gnu
 
     - name: Build linux-arm64
-      run: cross build --target aarch64-unknown-linux-gnu
+      run: cross build --release --target aarch64-unknown-linux-gnu
 
     - name: list files
       run: find .
@@ -32,8 +32,10 @@ jobs:
     - name: upload linux artifact
       uses: actions/upload-artifact@v4
       with:
-        name: binary-linux
-        path: target/release/docker-container-metrics
+        name: binaries-linux
+        path: |
+          target/x86_64-unknown-linux-gnu/release/docker-container-metrics
+          target/aarch64-unknown-linux-gnu/release/docker-container-metrics
         if-no-files-found: error
 
   publish-docker:
