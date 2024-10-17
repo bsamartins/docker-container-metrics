@@ -41,7 +41,7 @@ jobs:
     needs: build
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -59,15 +59,13 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: download linux artifacts
+      - name: Download Linux Artifacts
         uses: actions/download-artifact@v4
         with:
           name: binaries-linux
           path: build
 
-      - run: find .
-
-      - name: echo meta
+      - name: Debug Docker Meta
         run: |
           echo "tags: ${{ steps.meta.outputs.tags }}"
           echo "labels: ${{ steps.meta.outputs.labels }}"
@@ -79,6 +77,3 @@ jobs:
         with:
           targets: linux
           push: true
-#          platforms: linux/amd64,linux/arm64
-#          tags: ${{ steps.meta.outputs.tags }}
-#          labels: ${{ steps.meta.outputs.labels }}
