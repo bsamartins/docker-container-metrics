@@ -1,6 +1,6 @@
 services:
-  docker-compose-metrics:
-    image: docker-container-metrics:latest
+  docker-container-metrics:
+    image: ghcr.io/bsamartins/docker-container-metrics:main
     ports:
       - "9000:9000"
     volumes:
