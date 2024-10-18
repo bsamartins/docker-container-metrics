@@ -1,7 +1,9 @@
 name: Docker Container Metrics
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "${{ github.event.repository.default_branch }}" ]
+  pull_request:
+    branches: [ "${{ github.event.repository.default_branch }}" ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,6 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - run: echo ${{ github.event.repository.default_branch }}
     - uses: actions/checkout@v4
 
     - name: Prepare
@@ -81,4 +84,4 @@ jobs:
           TAGS: "${{ steps.meta.outputs.tags }}"
         with:
           targets: linux
-          push: true
+          push: ${{ github.event.repository.default_branch == github.ref_name }}
