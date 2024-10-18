@@ -5,8 +5,8 @@ variable "TAGS" {
 target "local" {
     dockerfile = "Docker.local.dockerfile"
     context = "."
-    tags = ["${TAGS}"]
-    output = ["type=image"]
+    tags = ["docker-container-metrics"]
+    output = ["type=docker"]
 }
 
 target "linux" {
